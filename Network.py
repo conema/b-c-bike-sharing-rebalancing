@@ -66,8 +66,12 @@ class Network:
                 current_node = self.source
                 nearest_node = self.find_nearest_node(nearest_node)
 
-        total_cost += self.cost_matrix[(current_node.id, self.source.id)]
-        route.append(self.source.id)
-        routes.append(route)
+                if nearest_node == None:
+                    break
+
+        if current_node.id != self.source.id:
+            total_cost += self.cost_matrix[(current_node.id, self.source.id)]
+            route.append(self.source.id)
+            routes.append(route)
 
         return routes, total_cost
