@@ -20,58 +20,63 @@ class Network:
         return sorted_distances[0] if len(sorted_distances) > 0 else None
 
     def build_route(self):
-        load = 0
         route = []
         routes = []
         unvisited_nodes = len(self.network)
         total_cost = 0
 
-        route.append(self.source.id)
+        route.append(self.source)
+        self.source.visited = True
 
-        current_node = self.source
         nearest_node = self.find_nearest_node(self.source)
 
+        nearest_node.visited = True
+        route.append(nearest_node)
+
         while unvisited_nodes > 0:
-            if (load + nearest_node.demand <= self.capacity and load + nearest_node.demand >= 0):
+            P = route[:]
+            sum_qp = [sum([p.demand for p in P[1:i+1]]) for i, _ in enumerate(P[1:], start=1)]
+            qp_max = max([0, max(sum_qp)])
+            qp_min = min(sum_qp)
+                
+
+            if qp_max - qp_min <= self.capacity:
                 # found a feasible node to visit
-
-                load += nearest_node.demand
-                nearest_node.visited = True
-
-                route.append(nearest_node.id)
-
-                total_cost += self.cost_matrix[(current_node.id,
-                                                nearest_node.id)]
-
-                current_node = nearest_node
-                nearest_node = self.find_nearest_node(nearest_node)
-
-                unvisited_nodes -= 1
-            elif current_node.id == self.source.id:
-                # if the current node is the source, allow the vehicle to exit with the load to satisfy the demand
-                load = self.capacity
-            else:
-                # the load cannot satisfy the demand, return to the source
-
-                route.append(self.source.id)
-                routes.append(route)
-
-                total_cost += self.cost_matrix[(current_node.id,
-                                                self.source.id)]
-
-                route = [self.source.id]
-
-                load = 0
-
-                current_node = self.source
-                nearest_node = self.find_nearest_node(nearest_node)
+                nearest_node = self.find_nearest_node(self.source)
 
                 if nearest_node == None:
                     break
 
-        if current_node.id != self.source.id:
-            total_cost += self.cost_matrix[(current_node.id, self.source.id)]
-            route.append(self.source.id)
+                nearest_node.visited = True
+                route.append(nearest_node)
+
+                unvisited_nodes -= 1
+            else:
+                # the load cannot satisfy the demand, return to the source
+                route.remove(nearest_node)
+                nearest_node.visited = False
+
+                route.append(self.source)
+                routes.append(route)
+
+                route = [self.source]
+
+                nearest_node = self.find_nearest_node(self.source)
+
+                nearest_node.visited = True
+                route.append(nearest_node)
+
+                if nearest_node == None:
+                    break
+
+        if route[-1] != self.source.id:
+            route.append(self.source)
             routes.append(route)
+
+
+
+        for route in routes:
+            for i in range(1, len(route)):
+                total_cost += self.cost_matrix[(route[i-1].id, route[i].id)]
 
         return routes, total_cost

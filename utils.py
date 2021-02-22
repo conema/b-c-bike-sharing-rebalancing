@@ -28,11 +28,11 @@ def open_dataset(file):
 
     return (n_nodes, costs, q_vertices, c_vehicles)
 
-def write_cplex_solution(routes, n):
+def write_cplex_solution(routes, total_cost, n):
     def get_value(current_node, next_node, routes_list):
         for route in routes_list:
             for i in range(0, len(route)-1):
-                if(route[i] == current_node and next_node == route[i+1]):
+                if(route[i].id == current_node and next_node == route[i+1].id):
                     return str(1)
 
         return str(0)
@@ -41,14 +41,14 @@ def write_cplex_solution(routes, n):
     xml_file = open("solution_xml.mst", "w")
 
     xml_file.write("<?xml version = \"1.0\" standalone=\"yes\"?><CPLEXSolution version=\"1.0\">\n<header problemName=\"BikeSharingRebalancing-F1\" objectiveValue=\"" +
-                str(routes[1]) + "\"/>\n<variables>\n")
+                str(total_cost) + "\"/>\n<variables>\n")
 
     k = 0
 
     for i in range(0, n):
         for j in range(0, n):
             xml_file.write("<variable name=\"x_" + str(i) + "_" + str(j) + "\" index=\"" +
-                        str(k) + "\" value=\"" + get_value(i, j, routes[0]) + "\"/>\n")
+                        str(k) + "\" value=\"" + get_value(i, j, routes) + "\"/>\n")
             k += 1
 
     xml_file.write("</variables></CPLEXSolution>")

@@ -57,7 +57,19 @@ datasets = [
             {"instance": "37Guadalajara20.txt", "obj": 59493, "time": "2.29"}
            ]
 
-datasets = [  {"instance": "8Bergamo20.txt", "obj": 12700, "time": "0.06"} ]
+datasets2 = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"},
+            {"instance": "2Bari20.txt", "obj": 15700, "time": "0.06"},
+            #{"instance": "3Bari10.txt", "obj": 20600, "time": "0.16"},
+            {"instance": "6ReggioEmilia10.txt", "obj": 32500, "time": "5.59"},
+            {"instance": "7Bergamo30.txt", "obj": 12600, "time": "0.05"},
+            {"instance": "8Bergamo20.txt", "obj": 12700, "time": "0.06"},
+            {"instance": "9Bergamo12.txt", "obj": 13500, "time": "0.27"},
+            {"instance": "13Treviso30.txt", "obj": 29259, "time": "0.12"},
+            {"instance": "14Treviso20.txt", "obj": 29259, "time": "0.12"},
+            {"instance": "34Madison20.txt", "obj": 29839, "time": "0.31"},
+            {"instance": "24SanAntonio30.txt", "obj": 22982 , "time": "0.19"}]
+
+#datasets = [ {"instance": "6ReggioEmilia10.txt", "obj": 32500, "time": "5.59"}]
 
 for dataset in datasets:
     print(dataset["instance"])
@@ -68,7 +80,7 @@ for dataset in datasets:
     N = [i for i in range(1, n)]
     V = [0] + N
     A = [(i, j) for i in V for j in V]
-    m = 10
+    #m = 80
 
     # build initial solution
     source = Node(0, q[0])
@@ -77,22 +89,30 @@ for dataset in datasets:
     network = Network(source, c, Q)
     network.add_nodes(nodes)
 
-    routes = network.build_route()
+    routes, total_cost = network.build_route()
 
-    #print(routes)
+
+    print([node.id for route in routes for node in route])
 
     # the route found by the heuristic should have less or equal number of vehicle
     #assert len(routes[0]) <= m
+    m = len(routes)
 
     # save initial solution as CPLEX file
 
-    utils.write_cplex_solution(routes, n)
+    utils.write_cplex_solution(routes, total_cost, n)
 
     # cplex solution
 
-    solutionF1, solve_details, routes = cplex_solution.f1(A, V, N, q, Q, c, m, n)
+    solutionF1 = cplex_solution.f1(A, V, N, q, Q, c, m, n)
 
-    new_value = {'Instance': dataset["instance"],  'Our obj': solutionF1.get_objective_value(), 'Paper Obj': dataset["obj"], 'Our Time': solve_details.time, 'Paper Time': dataset["time"], 'GAP': 100*solutionF1.get_objective_value()/dataset["obj"]-100}
+    if solutionF1 is None:
+        new_value = {'Instance': dataset["instance"],  'Our obj': "None", 'Paper Obj': dataset["obj"], 'Our Time': "none", 'Paper Time': dataset["time"], 'GAP': "None"}
+    else:
+        solve_details = solutionF1.solve_details
+        new_value = {'Instance': dataset["instance"],  'Our obj': solutionF1.get_objective_value(), 'Paper Obj': dataset["obj"], 'Our Time': solve_details.time, 'Paper Time': dataset["time"], 'GAP': "{:.2f}".format(100*solutionF1.get_objective_value()/dataset["obj"]-100)}
+
+    print(new_value)
 
     df = df.append(new_value, ignore_index=True)
 
