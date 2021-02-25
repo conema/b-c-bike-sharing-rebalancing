@@ -53,3 +53,29 @@ def write_cplex_solution(routes, total_cost, n):
 
     xml_file.write("</variables></CPLEXSolution>")
     xml_file.close()
+
+def print_routes(routes):
+    routes_dict = {}
+
+    for route in routes:
+        if route[0] != 0:
+            routes_dict[route[0]] = route[1]
+
+    while len(routes) > 0:
+        start_node = routes[0]
+        r = [start_node[0]]
+        next_node = start_node[1]
+
+        routes.remove((start_node[0], next_node))
+        r.append(next_node)
+        while True:
+            routes.remove((next_node,  routes_dict[next_node]))
+
+            if routes_dict[next_node] == start_node[0]:
+                r.append(start_node[0])
+                print(r)
+                break
+
+            next_node = routes_dict[next_node]
+
+            r.append(next_node)

@@ -426,52 +426,9 @@ class DOUserCallback(ConstraintCallbackMixin, UserCutCallback):
 def f1(A, V, N, q, Q, c, m, n):
     f1 = Model('BikeSharingRebalancing-F1')
 
-    #f1.context.cplex_parameters.mip.strategy.variableselect = 3
-
-
-    """
-    f1.context.cplex_parameters.mip.strategy.variableselect = 3
-    f1.context.cplex_parameters.mip.limits.cutsfactor = -1
-
-    f1.context.cplex_parameters.preprocessing.reduce = 0
-    f1.context.cplex_parameters.preprocessing.presolve = False
-    f1.context.cplex_parameters.preprocessing.relax = 0
-
-    f1.context.cplex_parameters.mip.limits.cutpasses = -1
-    f1.context.cplex_parameters.preprocessing.boundstrength = 0
-    """
-
-    """
-    f1.context.cplex_parameters.mip.limits.cutpasses = -1
-    #f1.context.cplex_parameters.mip.limits.nodes = 0
-    f1.context.cplex_parameters.preprocessing.reduce = 0
-    #f1.context.cplex_parameters.preprocessing.linear = 0
-
-    f1.context.cplex_parameters.preprocessing.presolve = False
-    f1.context.cplex_parameters.preprocessing.relax = 0
-
-    f1.context.cplex_parameters.lpmethod = 1
-
-    f1.context.cplex_parameters.mip.strategy.search = 1 
-
-    f1.context.cplex_parameters.mip.strategy.presolvenode = -1
-
-    
-    f1.context.cplex_parameters.mip.strategy.fpheur = -1
-    f1.context.cplex_parameters.mip.strategy.heuristicfreq = -1
-    f1.context.cplex_parameters.mip.strategy.lbheur= 0
-    f1.context.cplex_parameters.mip.strategy.rinsheur = -1
-    f1.context.cplex_parameters.mip.strategy.variableselect = -1
-
-    f1.context.cplex_parameters.preprocessing.qcpduals = 0
-    f1.context.cplex_parameters.preprocessing.boundstrength = 0
-    """
-    
-
     f1.parameters.timelimit = 60
     x = f1.binary_var_dict(A, name='x')
-    #theta = f1.continuous_var_dict(V, name='theta')
-    f = f1.continuous_var_dict(A, name='f')
+    theta = f1.continuous_var_dict(V, name='theta')
     
     
     cb = f1.register_callback(DOLazyCallback)
@@ -483,13 +440,11 @@ def f1(A, V, N, q, Q, c, m, n):
     cb.V = V
     cb.A = A
 
-    # vincoli
-
+    # constraints
     #1
     f1.minimize(f1.sum(c[i, j]*x[i, j] for i in V for j in V))
     
-    # 6
-
+    # 6 new
     f1.add_constraints((x[i, j] + x[j, i] <= 2 -
                         max(1, math.ceil(abs(q[i]+q[j])/Q))) for i in N for j in N)
                     
@@ -507,71 +462,132 @@ def f1(A, V, N, q, Q, c, m, n):
     #5
     f1.add_constraint(f1.sum(x[0, j] for j in N) == f1.sum(x[i, 0] for i in N))
 
-    #F2
-    #13
-    f1.add_constraints((f1.sum(f[j, i] for i in V) - f1.sum(f[i, j] for i in V)) == q[j] for j in N)
-
-    #14
-    f1.add_constraints(((f1.max(0, q[i], -q[j])*x[i, j]) <= f[i, j]) for i, j in A)
-    f1.add_constraints((f[i,j] <= (f1.min(Q, Q+q[i], Q-q[j])*x[i, j])) for i, j in A)
-
-    #F1
     #10
-    #f1.add_constraints((f1.max(0, q[j]) <= theta[j]) for j in V)
-    #f1.add_constraints((theta[j] <= f1.min(Q, Q+q[j])) for j in V)
+    f1.add_constraints((f1.max(0, q[j]) <= theta[j]) for j in V)
+    f1.add_constraints((theta[j] <= f1.min(Q, Q+q[j])) for j in V)
 
     #11
-    #f1.add_constraints(theta[j] >= theta[i] + q[j] - f1.min(Q, Q+q[j])*(1-x[i, j]) for i in V for j in N)
+    f1.add_constraints(theta[j] >= theta[i] + q[j] - f1.min(Q, Q+q[j])*(1-x[i, j]) for i in V for j in N)
 
     #12
-    #f1.add_constraints(theta[i] >= theta[j] - q[j] - f1.min(Q, Q-q[j])*(1-x[i, j]) for i in N for j in V)
+    f1.add_constraints(theta[i] >= theta[j] - q[j] - f1.min(Q, Q-q[j])*(1-x[i, j]) for i in N for j in V)
 
     f1.read_mip_starts("solution_xml.mst")
     #solutionF1 = f1.solve(log_output=True, clean_before_solve=True)
 
-    #print(f1.print_information())
-
-    """
-    cpx = f1.get_engine().get_cplex()
-    status = cpx.parameters.tune_problem()                                          
-    if status == cpx.parameters.tuning_status.completed:                            
-        print("tuned parameters:")                                                  
-        for param, value in cpx.parameters.get_changed():                           
-            print("{0}: {1}".format(repr(param), value))                            
-    else:                                                                           
-        print("tuning status was: {0}".format(                                      
-            cpx.parameters.tuning_status[status]))
-    """
-
-    solutionF1 = f1.solve(clean_before_solve=True)
+    solution_F1 = f1.solve(clean_before_solve=True)
 
 
     routes = [a for a in A if x[a].solution_value > 0.9]
 
-    routes_dict = {}
+    return solution_F1, routes
 
-    for route in routes:
-        if route[0] != 0:
-            routes_dict[route[0]] = route[1]
+def f2(A, V, N, q, Q, c, m, n):
+    f2 = Model('BikeSharingRebalancing-F2')
 
-    while len(routes) > 0:
-        start_node = routes[0]
-        r = [start_node[0]]
-        next_node = start_node[1]
+    f2.parameters.timelimit = 60
+    x = f2.binary_var_dict(A, name='x')
+    f = f2.continuous_var_dict(A, name='f')
+    
+    
+    cb = f2.register_callback(DOLazyCallback)
+    cb.x = x
+    cb.N = N
+    cb.n = n
+    cb.Q = Q
+    cb.q = q
+    cb.V = V
+    cb.A = A
 
-        routes.remove((start_node[0], next_node))
-        r.append(next_node)
-        while True:
-            routes.remove((next_node,  routes_dict[next_node]))
+    # constraints
 
-            if routes_dict[next_node] == start_node[0]:
-                r.append(start_node[0])
-                print(r)
-                break
+    #1
+    f2.minimize(f2.sum(c[i, j]*x[i, j] for i in V for j in V))
+    
+    # 6
+    f2.add_constraints((x[i, j] + x[j, i] <= 2 -
+                        max(1, math.ceil(abs(q[i]+q[j])/Q))) for i in N for j in N)
+                    
+    f2.add_constraints(x[i,i] == 0 for i in V)
 
-            next_node = routes_dict[next_node]
+    #2
+    f2.add_constraints(f2.sum(x[i, j] for i in V) == 1 for j in N)
 
-            r.append(next_node)
+    #3
+    f2.add_constraints(f2.sum(x[j, i] for i in V) == 1 for j in N)
+
+    #4
+    f2.add_constraint(f2.sum(x[0, j] for j in V) <= m )
+
+    #5
+    f2.add_constraint(f2.sum(x[0, j] for j in N) == f2.sum(x[i, 0] for i in N))
+
+    #13
+    f2.add_constraints((f2.sum(f[j, i] for i in V) - f2.sum(f[i, j] for i in V)) == q[j] for j in N)
+
+    #14
+    f2.add_constraints(((f2.max(0, q[i], -q[j])*x[i, j]) <= f[i, j]) for i, j in A)
+    f2.add_constraints((f[i,j] <= (f2.min(Q, Q+q[i], Q-q[j])*x[i, j])) for i, j in A)
 
 
-    return solutionF1
+    f2.read_mip_starts("solution_xml.mst")
+    #solutionf2 = f2.solve(log_output=True, clean_before_solve=True)
+
+    solution_F2 = f2.solve(clean_before_solve=True)
+
+
+    routes = [a for a in A if x[a].solution_value > 0.9]
+
+
+    return solution_F2, routes
+
+def f3(A, V, N, q, Q, c, m, n):
+    f3 = Model('BikeSharingRebalancing-F3')
+
+    f3.context.cplex_parameters.mip.strategy.variableselect = 3
+
+    f3.parameters.timelimit = 60
+    x = f3.binary_var_dict(A, name='x')
+    
+    
+    cb = f3.register_callback(DOLazyCallback)
+    cb.x = x
+    cb.N = N
+    cb.n = n
+    cb.Q = Q
+    cb.q = q
+    cb.V = V
+    cb.A = A
+
+    # constraints
+    #1
+    f3.minimize(f3.sum(c[i, j]*x[i, j] for i in V for j in V))
+    
+    # 6 new
+    f3.add_constraints((x[i, j] + x[j, i] <= 2 -
+                        max(1, math.ceil(abs(q[i]+q[j])/Q))) for i in N for j in N)
+                    
+    f3.add_constraints(x[i,i] == 0 for i in V)
+
+    #2
+    f3.add_constraints(f3.sum(x[i, j] for i in V) == 1 for j in N)
+
+    #3
+    f3.add_constraints(f3.sum(x[j, i] for i in V) == 1 for j in N)
+
+    #4
+    f3.add_constraint(f3.sum(x[0, j] for j in V) <= m )
+
+    #5
+    f3.add_constraint(f3.sum(x[0, j] for j in N) == f3.sum(x[i, 0] for i in N))
+
+    f3.read_mip_starts("solution_xml.mst")
+    #solutionf3 = f3.solve(log_output=True, clean_before_solve=True)
+
+    solution_F3 = f3.solve(clean_before_solve=True)
+
+
+    routes = [a for a in A if x[a].solution_value > 0.9]
+
+
+    return solution_F3, routes

@@ -57,9 +57,9 @@ datasets = [
             {"instance": "37Guadalajara20.txt", "obj": 59493, "time": "2.29"}
            ]
 
-datasets2 = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"},
+datasets = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"},
             {"instance": "2Bari20.txt", "obj": 15700, "time": "0.06"},
-            #{"instance": "3Bari10.txt", "obj": 20600, "time": "0.16"},
+            {"instance": "3Bari10.txt", "obj": 20600, "time": "0.16"},
             {"instance": "6ReggioEmilia10.txt", "obj": 32500, "time": "5.59"},
             {"instance": "7Bergamo30.txt", "obj": 12600, "time": "0.05"},
             {"instance": "8Bergamo20.txt", "obj": 12700, "time": "0.06"},
@@ -67,9 +67,8 @@ datasets2 = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"},
             {"instance": "13Treviso30.txt", "obj": 29259, "time": "0.12"},
             {"instance": "14Treviso20.txt", "obj": 29259, "time": "0.12"},
             {"instance": "34Madison20.txt", "obj": 29839, "time": "0.31"},
-            {"instance": "24SanAntonio30.txt", "obj": 22982 , "time": "0.19"}]
-
-#datasets = [ {"instance": "6ReggioEmilia10.txt", "obj": 32500, "time": "5.59"}]
+            {"instance": "24SanAntonio30.txt", "obj": 22982 , "time": "0.19"},
+            {"instance": "20BuenosAires20.txt", "obj": 91619, "time": "23.26"}]
 
 for dataset in datasets:
     print(dataset["instance"])
@@ -104,13 +103,15 @@ for dataset in datasets:
 
     # cplex solution
 
-    solutionF1 = cplex_solution.f1(A, V, N, q, Q, c, m, n)
+    solution, routes_solution = cplex_solution.f3(A, V, N, q, Q, c, m, n)
 
-    if solutionF1 is None:
+    utils.print_routes(routes_solution)
+
+    if solution is None:
         new_value = {'Instance': dataset["instance"],  'Our obj': "None", 'Paper Obj': dataset["obj"], 'Our Time': "none", 'Paper Time': dataset["time"], 'GAP': "None"}
     else:
-        solve_details = solutionF1.solve_details
-        new_value = {'Instance': dataset["instance"],  'Our obj': solutionF1.get_objective_value(), 'Paper Obj': dataset["obj"], 'Our Time': solve_details.time, 'Paper Time': dataset["time"], 'GAP': "{:.2f}".format(100*solutionF1.get_objective_value()/dataset["obj"]-100)}
+        solve_details = solution.solve_details
+        new_value = {'Instance': dataset["instance"],  'Our obj': solution.get_objective_value(), 'Paper Obj': dataset["obj"], 'Our Time': solve_details.time, 'Paper Time': dataset["time"], 'GAP': "{:.2f}".format(100*solution.get_objective_value()/dataset["obj"]-100)}
 
     print(new_value)
 
