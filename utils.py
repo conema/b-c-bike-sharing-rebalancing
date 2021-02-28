@@ -28,31 +28,23 @@ def open_dataset(file):
 
     return (n_nodes, costs, q_vertices, c_vehicles)
 
-def write_cplex_solution(routes, total_cost, n):
-    def get_value(current_node, next_node, routes_list):
-        for route in routes_list:
-            for i in range(0, len(route)-1):
-                if(route[i].id == current_node and next_node == route[i+1].id):
-                    return str(1)
+def write_cplex_solution(routes, n):
+    adjacencies_dict = {}
 
-        return str(0)
+    for route in routes:
+        for i in range(1, len(route)):
+            adjacencies_dict[(route[i-1].id, route[i].id)] = 1
 
+    value_map = {}
 
-    xml_file = open("solution_xml.mst", "w")
-
-    xml_file.write("<?xml version = \"1.0\" standalone=\"yes\"?><CPLEXSolution version=\"1.0\">\n<header problemName=\"BikeSharingRebalancing-F1\" objectiveValue=\"" +
-                str(total_cost) + "\"/>\n<variables>\n")
-
-    k = 0
+    print(adjacencies_dict)
 
     for i in range(0, n):
         for j in range(0, n):
-            xml_file.write("<variable name=\"x_" + str(i) + "_" + str(j) + "\" index=\"" +
-                        str(k) + "\" value=\"" + get_value(i, j, routes) + "\"/>\n")
-            k += 1
+           value_map["x_" + str(i) + "_" + str(j)] = 1 if (i,j) in adjacencies_dict else 0
+    
+    return value_map
 
-    xml_file.write("</variables></CPLEXSolution>")
-    xml_file.close()
 
 def print_routes(routes):
     routes_dict = {}

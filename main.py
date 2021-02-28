@@ -1,9 +1,9 @@
 import utils
-import cplex_solution
 from Network import Network
 from Node import Node
+from Formulation import Formulation
 import pandas as pd
-
+from docplex.mp.solution import SolveSolution
 
 """
 n: station number
@@ -57,18 +57,7 @@ datasets = [
             {"instance": "37Guadalajara20.txt", "obj": 59493, "time": "2.29"}
            ]
 
-datasets = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"},
-            {"instance": "2Bari20.txt", "obj": 15700, "time": "0.06"},
-            {"instance": "3Bari10.txt", "obj": 20600, "time": "0.16"},
-            {"instance": "6ReggioEmilia10.txt", "obj": 32500, "time": "5.59"},
-            {"instance": "7Bergamo30.txt", "obj": 12600, "time": "0.05"},
-            {"instance": "8Bergamo20.txt", "obj": 12700, "time": "0.06"},
-            {"instance": "9Bergamo12.txt", "obj": 13500, "time": "0.27"},
-            {"instance": "13Treviso30.txt", "obj": 29259, "time": "0.12"},
-            {"instance": "14Treviso20.txt", "obj": 29259, "time": "0.12"},
-            {"instance": "34Madison20.txt", "obj": 29839, "time": "0.31"},
-            {"instance": "24SanAntonio30.txt", "obj": 22982 , "time": "0.19"},
-            {"instance": "20BuenosAires20.txt", "obj": 91619, "time": "23.26"}]
+datasets = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"}]
 
 for dataset in datasets:
     print(dataset["instance"])
@@ -97,13 +86,17 @@ for dataset in datasets:
     #assert len(routes[0]) <= m
     m = len(routes)
 
-    # save initial solution as CPLEX file
-
-    utils.write_cplex_solution(routes, total_cost, n)
-
     # cplex solution
 
-    solution, routes_solution = cplex_solution.f3(A, V, N, q, Q, c, m, n)
+    f = Formulation(A, V, N, q, Q, c, m, n, 3)
+    f.set_formulation()
+    f.add_formulation_constraints()
+
+    # save initial solution as CPLEX file
+    value_map = utils.write_cplex_solution(routes, n)
+    solve_solution = SolveSolution(model=f.formulation, var_value_map=value_map, obj=total_cost)
+
+    solution, routes_solution = f.run_formulation(solve_solution, True)
 
     utils.print_routes(routes_solution)
 
