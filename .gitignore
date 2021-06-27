@@ -1,5 +1,6 @@
 *.mst
 *.csv
+dataset/solutions/*.sol
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

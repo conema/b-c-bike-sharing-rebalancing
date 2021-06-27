@@ -4,6 +4,8 @@ from Node import Node
 from Formulation import Formulation
 import pandas as pd
 from docplex.mp.solution import SolveSolution
+import os.path
+import pickle
 
 """
 n: station number
@@ -57,7 +59,24 @@ datasets = [
             {"instance": "37Guadalajara20.txt", "obj": 59493, "time": "2.29"}
            ]
 
-datasets = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"}]
+datasets = [ {"instance": "1Bari30.txt", "obj": 14600, "time": "0.06"},
+            {"instance": "2Bari20.txt", "obj": 15700, "time": "0.06"},
+            {"instance": "3Bari10.txt", "obj": 20600, "time": "0.16"},
+            {"instance": "4ReggioEmilia30.txt", "obj": 16900, "time": "0.03"},
+            {"instance": "5ReggioEmilia20.txt", "obj": 23200, "time": "0.09"},
+            {"instance": "6ReggioEmilia10.txt", "obj": 32500, "time": "5.59"},
+            {"instance": "7Bergamo30.txt", "obj": 12600, "time": "0.05"},
+            {"instance": "8Bergamo20.txt", "obj": 12700, "time": "0.06"},
+            {"instance": "9Bergamo12.txt", "obj": 13500, "time": "0.27"},
+            {"instance": "10Parma30.txt", "obj": 29000, "time": "0.05"},
+            {"instance": "11Parma20.txt", "obj": 29000, "time": "0.05"},
+            {"instance": "12Parma10.txt", "obj": 32500, "time": "0.22"},
+            {"instance": "13Treviso30.txt", "obj": 29259, "time": "0.12"},
+            {"instance": "14Treviso20.txt", "obj": 29259, "time": "0.12"},
+            {"instance": "15Treviso10.txt", "obj": 31443, "time": "0.27"},
+            {"instance": "16LaSpezia30.txt", "obj": 20746, "time": "0.09"},
+            {"instance": "17LaSpezia20.txt", "obj": 20746, "time": "0.09"},
+            {"instance": "18LaSpezia10.txt", "obj": 22811, "time": "0.16"}]
 
 for dataset in datasets:
     print(dataset["instance"])
@@ -70,33 +89,42 @@ for dataset in datasets:
     A = [(i, j) for i in V for j in V]
     #m = 80
 
-    # build initial solution
-    source = Node(0, q[0])
-    nodes = [Node(i, q[i]) for i in range(1, n)]
+    if os.path.isfile("dataset/solutions/" + dataset["instance"] + ".sol"):
+        # check if a solution file exists
+        with open("dataset/solutions/" + dataset["instance"] + ".sol", 'rb') as input:
+            sol_object = pickle.load(input)
+            total_cost = sol_object["cost"]
+            value_map = sol_object["value_map"]
+            
+            m = 12
+    else:
+        # build initial solution
+        source = Node(0, q[0])
+        nodes = [Node(i, q[i]) for i in range(1, n)]
 
-    network = Network(source, c, Q)
-    network.add_nodes(nodes)
+        network = Network(source, c, Q)
+        network.add_nodes(nodes)
 
-    routes, total_cost = network.build_route()
+        routes, total_cost = network.build_route()
 
 
-    print([node.id for route in routes for node in route])
+        print([node.id for route in routes for node in route])
 
-    # the route found by the heuristic should have less or equal number of vehicle
-    #assert len(routes[0]) <= m
-    m = len(routes)
+        # the route found by the heuristic should have less or equal number of vehicle
+        #assert len(routes[0]) <= m
+        m = len(routes)
+
+        # save initial solution as CPLEX file
+        value_map = utils.write_cplex_solution(routes, n)
+
 
     # cplex solution
-
     f = Formulation(A, V, N, q, Q, c, m, n, 3)
     f.set_formulation()
     f.add_formulation_constraints()
-
-    # save initial solution as CPLEX file
-    value_map = utils.write_cplex_solution(routes, n)
     solve_solution = SolveSolution(model=f.formulation, var_value_map=value_map, obj=total_cost)
 
-    solution, routes_solution = f.run_formulation(solve_solution, True)
+    solution, routes_solution = f.run_formulation(solve_solution, False)
 
     utils.print_routes(routes_solution)
 
@@ -104,12 +132,14 @@ for dataset in datasets:
         new_value = {'Instance': dataset["instance"],  'Our obj': "None", 'Paper Obj': dataset["obj"], 'Our Time': "none", 'Paper Time': dataset["time"], 'GAP': "None"}
     else:
         solve_details = solution.solve_details
-        new_value = {'Instance': dataset["instance"],  'Our obj': solution.get_objective_value(), 'Paper Obj': dataset["obj"], 'Our Time': solve_details.time, 'Paper Time': dataset["time"], 'GAP': "{:.2f}".format(100*solution.get_objective_value()/dataset["obj"]-100)}
+        new_value = {'Instance': dataset["instance"],  'Our obj': solution.get_objective_value(), 'Paper Obj': dataset["obj"], 'Our Time': float("{:.2f}".format(solve_details.time)), 'Paper Time': dataset["time"], 'GAP':  float("{:.2f}".format(100*solution.get_objective_value()/dataset["obj"]-100))}
 
     print(new_value)
 
     df = df.append(new_value, ignore_index=True)
 
 print(df)
+print("Time avg:", df["Our Time"].mean())
+print("GAP avg:", df["GAP"].mean())
 
 df.to_csv('df.csv')
